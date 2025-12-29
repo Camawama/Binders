@@ -12,12 +12,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -35,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public class BinderManager {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -66,14 +71,25 @@ public class BinderManager {
                 if (definitions == null) {
                     definitions = new ArrayList<>();
                 }
+                
+                // Sanitize loaded definitions to ensure no nulls
+                for (BinderDefinition def : definitions) {
+                    if (def.context == null) def.context = "always";
+                    if (def.contextLogic == null) def.contextLogic = "OR";
+                    if (def.color == null) def.color = "#FFFFFF";
+                }
+                
+                // Save immediately to update the file structure if it was old
+                save();
+                
             } catch (IOException e) {
                 e.printStackTrace();
                 definitions = new ArrayList<>();
             }
         } else {
             // Create default config
-            definitions.add(new BinderDefinition("key.jump", "Jump", "minecraft:feather", "always", "#FFFFFF", 1.0f, true, -1, false, false, false));
-            definitions.add(new BinderDefinition("key.inventory", "Inventory", "minecraft:chest", "always", "#FFFFFF", 1.0f, true, 5, true, false, false));
+            definitions.add(new BinderDefinition("key.jump", "Jump", "minecraft:feather", "always", "OR", "#FFFFFF", 1.0f, true, -1, false, false, false));
+            definitions.add(new BinderDefinition("key.inventory", "Inventory", "minecraft:chest", "always", "OR", "#FFFFFF", 1.0f, true, 5, true, false, false));
             save();
         }
         
@@ -149,12 +165,25 @@ public class BinderManager {
             if (def.context == null || def.context.isEmpty()) return true;
             
             String[] contexts = def.context.split(",");
-            for (String ctx : contexts) {
-                if (checkSingleContext(ctx.trim(), player)) {
-                    return true;
+            boolean isAnd = "AND".equalsIgnoreCase(def.contextLogic);
+            
+            if (isAnd) {
+                // AND logic: ALL contexts must be true
+                for (String ctx : contexts) {
+                    if (!checkSingleContext(ctx.trim(), player)) {
+                        return false;
+                    }
                 }
+                return true;
+            } else {
+                // OR logic: ANY context must be true
+                for (String ctx : contexts) {
+                    if (checkSingleContext(ctx.trim(), player)) {
+                        return true;
+                    }
+                }
+                return false;
             }
-            return false;
         }
 
         private boolean checkSingleContext(String ctx, Player player) {
@@ -167,6 +196,8 @@ public class BinderManager {
             if (ctx.equals("swimming")) return player.isSwimming();
             if (ctx.equals("on_ground")) return player.onGround();
             if (ctx.equals("riding")) return player.isPassenger();
+            if (ctx.equals("raining")) return player.level().isRaining();
+            if (ctx.equals("thundering")) return player.level().isThundering();
             
             if (ctx.startsWith("holding:")) {
                 String itemIdOrPattern = ctx.substring("holding:".length());
@@ -183,6 +214,26 @@ public class BinderManager {
                 return isHoldingOff(player, itemIdOrPattern);
             }
             
+            if (ctx.startsWith("wearing_head:")) {
+                String itemIdOrPattern = ctx.substring("wearing_head:".length());
+                return isWearing(player, EquipmentSlot.HEAD, itemIdOrPattern);
+            }
+            
+            if (ctx.startsWith("wearing_chest:")) {
+                String itemIdOrPattern = ctx.substring("wearing_chest:".length());
+                return isWearing(player, EquipmentSlot.CHEST, itemIdOrPattern);
+            }
+            
+            if (ctx.startsWith("wearing_legs:")) {
+                String itemIdOrPattern = ctx.substring("wearing_legs:".length());
+                return isWearing(player, EquipmentSlot.LEGS, itemIdOrPattern);
+            }
+            
+            if (ctx.startsWith("wearing_feet:")) {
+                String itemIdOrPattern = ctx.substring("wearing_feet:".length());
+                return isWearing(player, EquipmentSlot.FEET, itemIdOrPattern);
+            }
+            
             if (ctx.startsWith("looking_at_block:")) {
                 String blockIdOrPattern = ctx.substring("looking_at_block:".length());
                 return isLookingAtBlock(player, blockIdOrPattern);
@@ -192,8 +243,42 @@ public class BinderManager {
                 String tagId = ctx.substring("looking_at_tag:".length());
                 return isLookingAtTag(player, tagId);
             }
+            
+            if (ctx.startsWith("looking_at_entity:")) {
+                String entityIdOrPattern = ctx.substring("looking_at_entity:".length());
+                return isLookingAtEntity(player, entityIdOrPattern);
+            }
+            
+            if (ctx.startsWith("dimension:")) {
+                String dimId = ctx.substring("dimension:".length());
+                return player.level().dimension().location().toString().equals(dimId);
+            }
+            
+            if (ctx.startsWith("biome:")) {
+                String biomeId = ctx.substring("biome:".length());
+                ResourceLocation biome = player.level().getBiome(player.blockPosition()).unwrapKey().get().location();
+                return biome.toString().equals(biomeId);
+            }
+            
+            if (ctx.startsWith("health_below:")) {
+                try {
+                    float val = Float.parseFloat(ctx.substring("health_below:".length()));
+                    return player.getHealth() < val;
+                } catch (NumberFormatException e) { return false; }
+            }
+            
+            if (ctx.startsWith("hunger_below:")) {
+                try {
+                    int val = Integer.parseInt(ctx.substring("hunger_below:".length()));
+                    return player.getFoodData().getFoodLevel() < val;
+                } catch (NumberFormatException e) { return false; }
+            }
 
             return false;
+        }
+        
+        private boolean isWildcard(String pattern) {
+            return pattern.equals("*") || pattern.equals("any") || pattern.equals("*:*");
         }
 
         private boolean isHolding(Player player, String itemIdOrPattern) {
@@ -216,7 +301,19 @@ public class BinderManager {
             }
         }
         
+        private boolean isWearing(Player player, EquipmentSlot slot, String itemIdOrPattern) {
+            ItemStack stack = player.getItemBySlot(slot);
+            if (def.isRegex) {
+                return matchesItemRegex(stack, itemIdOrPattern);
+            } else {
+                return matchesItemExact(stack, itemIdOrPattern);
+            }
+        }
+        
         private boolean matchesItemExact(ItemStack stack, String itemId) {
+            if (stack.isEmpty()) return false;
+            if (isWildcard(itemId)) return true;
+            
             try {
                 ResourceLocation rl = new ResourceLocation(itemId);
                 Item item = ForgeRegistries.ITEMS.getValue(rl);
@@ -229,12 +326,17 @@ public class BinderManager {
         
         private boolean matchesItemRegex(ItemStack stack, String patternStr) {
             if (stack.isEmpty()) return false;
+            if (isWildcard(patternStr)) return true;
+            
             ResourceLocation rl = ForgeRegistries.ITEMS.getKey(stack.getItem());
             if (rl == null) return false;
             
             try {
                 Pattern pattern = Pattern.compile(patternStr);
                 return pattern.matcher(rl.toString()).matches();
+            } catch (PatternSyntaxException e) {
+                LOGGER.error("Invalid regex in binder context: {}", patternStr);
+                return false;
             } catch (Exception e) {
                 return false;
             }
@@ -243,6 +345,8 @@ public class BinderManager {
         private boolean isLookingAtBlock(Player player, String blockIdOrPattern) {
             HitResult hit = Minecraft.getInstance().hitResult;
             if (hit == null || hit.getType() != HitResult.Type.BLOCK) return false;
+            
+            if (isWildcard(blockIdOrPattern)) return true;
             
             BlockHitResult blockHit = (BlockHitResult) hit;
             BlockPos pos = blockHit.getBlockPos();
@@ -255,6 +359,9 @@ public class BinderManager {
                 try {
                     Pattern pattern = Pattern.compile(blockIdOrPattern);
                     return pattern.matcher(rl.toString()).matches();
+                } catch (PatternSyntaxException e) {
+                    LOGGER.error("Invalid regex in binder context: {}", blockIdOrPattern);
+                    return false;
                 } catch (Exception e) {
                     return false;
                 }
@@ -277,6 +384,33 @@ public class BinderManager {
                 return state.is(tagKey);
             } catch (Exception e) {
                 return false;
+            }
+        }
+        
+        private boolean isLookingAtEntity(Player player, String entityIdOrPattern) {
+            HitResult hit = Minecraft.getInstance().hitResult;
+            if (hit == null || hit.getType() != HitResult.Type.ENTITY) return false;
+            
+            if (isWildcard(entityIdOrPattern)) return true;
+            
+            EntityHitResult entityHit = (EntityHitResult) hit;
+            Entity entity = entityHit.getEntity();
+            EntityType<?> type = entity.getType();
+            ResourceLocation rl = ForgeRegistries.ENTITY_TYPES.getKey(type);
+            if (rl == null) return false;
+            
+            if (def.isRegex) {
+                try {
+                    Pattern pattern = Pattern.compile(entityIdOrPattern);
+                    return pattern.matcher(rl.toString()).matches();
+                } catch (PatternSyntaxException e) {
+                    LOGGER.error("Invalid regex in binder context: {}", entityIdOrPattern);
+                    return false;
+                } catch (Exception e) {
+                    return false;
+                }
+            } else {
+                return rl.toString().equals(entityIdOrPattern);
             }
         }
 
@@ -335,6 +469,24 @@ public class BinderManager {
                                     return new ItemStack(state.getBlock().asItem());
                                 }
                             }
+                        }
+                        
+                        // Handle wearing contexts for dynamic icons
+                        if (ctx.startsWith("wearing_head:")) {
+                            String pattern = ctx.substring("wearing_head:".length());
+                            if (isWearing(player, EquipmentSlot.HEAD, pattern)) return player.getItemBySlot(EquipmentSlot.HEAD);
+                        }
+                        if (ctx.startsWith("wearing_chest:")) {
+                            String pattern = ctx.substring("wearing_chest:".length());
+                            if (isWearing(player, EquipmentSlot.CHEST, pattern)) return player.getItemBySlot(EquipmentSlot.CHEST);
+                        }
+                        if (ctx.startsWith("wearing_legs:")) {
+                            String pattern = ctx.substring("wearing_legs:".length());
+                            if (isWearing(player, EquipmentSlot.LEGS, pattern)) return player.getItemBySlot(EquipmentSlot.LEGS);
+                        }
+                        if (ctx.startsWith("wearing_feet:")) {
+                            String pattern = ctx.substring("wearing_feet:".length());
+                            if (isWearing(player, EquipmentSlot.FEET, pattern)) return player.getItemBySlot(EquipmentSlot.FEET);
                         }
                     }
                 }
