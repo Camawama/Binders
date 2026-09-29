@@ -121,6 +121,9 @@ repositories {
     // flatDir {
     //     dir 'libs'
     // }
+
+    // Camafy is published to the local Maven repository (publishToMavenLocal).
+    mavenLocal()
 }
 
 dependencies {
@@ -130,6 +133,9 @@ dependencies {
     // If the group id is "net.minecraft" and the artifact id is one of ["client", "server", "joined"],
     // then special handling is done to allow a setup of a vanilla dependency without the use of an external repository.
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // Camafy, the shared library mod
+    implementation fg.deobf("net.camacraft.camafy:camafy:${camafy_version}")
 
     // Example mod dependency with JEI - using fg.deobf() ensures the dependency is remapped to your development mappings
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
@@ -156,6 +162,7 @@ tasks.named('processResources', ProcessResources).configure {
             minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,
             forge_version: forge_version, forge_version_range: forge_version_range,
             loader_version_range: loader_version_range,
+            camafy_version_range: camafy_version_range,
             mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
             mod_authors: mod_authors, mod_description: mod_description,
     ]

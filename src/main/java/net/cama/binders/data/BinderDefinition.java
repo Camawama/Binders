@@ -1,18 +1,25 @@
 package net.cama.binders.data;
 
 public class BinderDefinition {
-    public String keyBinding; 
-    public String label;      
-    public String iconItem;   
-    public String context = "always";    
-    public String contextLogic = "OR"; 
-    public String color = "#FFFFFF";      
-    public float scale = 1.0f;       
-    public boolean showLabel = true; 
-    public int maxPresses = -1;    
-    public boolean resetOnLog = false; 
-    public boolean isRegex = false;    
-    public boolean dynamicIcon = false; 
+    public String keyBinding;
+    public String label;
+    public String iconItem;
+    /** Optional stable identity for stats. When set, renaming the label no longer resets press counts. */
+    public String id;
+    public String context = "always";
+    public String contextLogic = "OR";
+    public String color = "#FFFFFF";
+    public float scale = 1.0f;
+    public boolean showLabel = true;
+    public int maxPresses = -1;
+    public boolean resetOnLog = false;
+    /** Legacy flag: applies regex matching to BOTH the keyBinding and context item/block/entity ids. */
+    public boolean isRegex = false;
+    /** Overrides isRegex for the keyBinding only. Null = fall back to isRegex. */
+    public Boolean keyIsRegex;
+    /** Overrides isRegex for context item/block/entity ids only. Null = fall back to isRegex. */
+    public Boolean contextIsRegex;
+    public boolean dynamicIcon = false;
 
     public BinderDefinition(String keyBinding, String label, String iconItem, String context, String contextLogic, String color, float scale, boolean showLabel, int maxPresses, boolean resetOnLog, boolean isRegex, boolean dynamicIcon) {
         this.keyBinding = keyBinding;
@@ -28,8 +35,16 @@ public class BinderDefinition {
         this.isRegex = isRegex;
         this.dynamicIcon = dynamicIcon;
     }
-    
+
     public BinderDefinition() {
         // Defaults are already set in field declarations
+    }
+
+    public boolean keyIsRegex() {
+        return keyIsRegex != null ? keyIsRegex : isRegex;
+    }
+
+    public boolean contextIsRegex() {
+        return contextIsRegex != null ? contextIsRegex : isRegex;
     }
 }

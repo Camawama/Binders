@@ -32,10 +32,18 @@ public interface IBinder {
     KeyMapping getKeyMapping();
     
     /**
-     * Default color for the text.
+     * Default color for the text, in ARGB format (including alpha).
      */
     default int getColor() {
-        return 0xFFFFFF;
+        return 0xFFFFFFFF;
+    }
+
+    /**
+     * Whether presses of this binder should be counted for stats/maxPresses.
+     * Return false to skip tracking (and the disk writes that come with it).
+     */
+    default boolean shouldTrackPresses() {
+        return true;
     }
 
     /**

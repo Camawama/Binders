@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.slf4j.Logger;
@@ -21,9 +22,27 @@ public class ClientForgeEvents {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
+    // Flush pending stats roughly every 30 seconds instead of writing on every keypress
+    private static final int FLUSH_INTERVAL_TICKS = 600;
+    private static int flushCounter = 0;
+
     @SubscribeEvent
     public static void onPlayerLogin(ClientPlayerNetworkEvent.LoggingIn event) {
         BinderStats.clearSession();
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        BinderStats.flush();
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        if (++flushCounter >= FLUSH_INTERVAL_TICKS) {
+            flushCounter = 0;
+            BinderStats.flush();
+        }
     }
 
     @SubscribeEvent
@@ -34,17 +53,17 @@ public class ClientForgeEvents {
                     .executes(context -> {
                         Minecraft mc = Minecraft.getInstance();
                         if (mc.player != null) {
-                            mc.player.sendSystemMessage(Component.literal("Dumping all keybind IDs to logs..."));
+                            mc.player.sendSystemMessage(Component.translatable("binders.command.dump.start"));
                             LOGGER.info("=== BINDERS KEYBIND DUMP ===");
                             Arrays.stream(mc.options.keyMappings)
                                     .forEach(key -> {
                                         String name = key.getName();
                                         String cat = key.getCategory();
                                         LOGGER.info("Key: '{}' | Category: '{}'", name, cat);
-                                        mc.player.sendSystemMessage(Component.literal("Key: " + name));
+                                        mc.player.sendSystemMessage(Component.translatable("binders.command.dump.entry", name));
                                     });
                             LOGGER.info("============================");
-                            mc.player.sendSystemMessage(Component.literal("Dump complete. Check latest.log"));
+                            mc.player.sendSystemMessage(Component.translatable("binders.command.dump.done"));
                         }
                         return 1;
                     })
@@ -53,12 +72,12 @@ public class ClientForgeEvents {
                     .executes(context -> {
                         Minecraft mc = Minecraft.getInstance();
                         if (mc.player != null) {
-                            mc.player.sendSystemMessage(Component.literal("Reloading Binders definitions..."));
+                            mc.player.sendSystemMessage(Component.translatable("binders.command.reload.start"));
                             try {
                                 BinderManager.load();
-                                mc.player.sendSystemMessage(Component.literal("Reload complete!"));
+                                mc.player.sendSystemMessage(Component.translatable("binders.command.reload.done"));
                             } catch (Exception e) {
-                                mc.player.sendSystemMessage(Component.literal("Error reloading binders: " + e.getMessage()));
+                                mc.player.sendSystemMessage(Component.translatable("binders.command.reload.error", e.getMessage()));
                                 LOGGER.error("Failed to reload binders", e);
                             }
                         }

@@ -1,7 +1,8 @@
 # Binders
 **Binders** is a lightweight utility mod and API designed for modpack and mod developers who want to highlight important keybinds to players. No more confusion or hunting through menus to figure out a specific keybind. Binders makes critical keybinds stand out!
 
-![Alt Text](https://cdn.discordapp.com/attachments/1370005662201020527/1454741256654553192/image.png?ex=695230df&is=6950df5f&hm=4dcc5702d138807f02269728002cdb34d160b6fb285e660150f92eda88da6b78&)
+<!-- Discord CDN links expire; keep the screenshot in the repo instead (drop it at docs/screenshot.png) -->
+![Binders overlay screenshot](docs/screenshot.png)
 
 ## Features
 📌 **On-Screen Keybind Highlights**
@@ -14,7 +15,10 @@ JSON configuration support to control what keybinds are shown, when, and how. Su
 Make keybinds appear only during specific situations (e.g., when flying, while holding a specific item, in the Nether, etc.).
 
 🎨 **Custom Styling**
-Tweak the appearance with colors, fonts, and animations to match your modpack’s theme.
+Tweak the appearance with colors, scaling, and animations to match your modpack’s theme.
+
+🤝 **No Conflict Integration**
+If [No Conflict](https://github.com/Camawama) is installed, Binders shows the real physical key for conflicted keybinds that No Conflict manages (instead of "Not Bound"), including how they're reached: `[G]` for the tap selection, `[Hold G]` for the hold selection, `[G (menu)]` when the action is picked from the radial menu.
 
 🔄 **Dynamic Updates**
 Automatically responds to key remapping, so your on-screen display always stays accurate.
@@ -43,6 +47,13 @@ Binders are defined in `config/binders/binders_definitions.json`.
   "dynamicIcon": false
 }
 ```
+
+Optional fields:
+*   `"id"`: A stable identity for press-count stats. Without it, stats are keyed by `label`, so renaming the label resets `maxPresses` progress. Set an `id` to make stats survive label changes.
+*   `"keyIsRegex"` / `"contextIsRegex"`: Fine-grained overrides for `isRegex`. The legacy `isRegex` flag applies regex matching to **both** the `keyBinding` and any item/block/entity ids inside `context`; these two let you control each independently (e.g. a regex `keyBinding` with a plain `holding:minecraft:torch` context).
+
+### Press Counting (`maxPresses`)
+When `maxPresses` is 0 or greater, the binder hides after the key has been pressed that many times. Counts persist across sessions in `config/binders/binders_stats.json` unless `"resetOnLog": true`, which counts per-session only. Presses are only counted while no GUI screen is open.
 
 ### Context System
 The `context` field determines **when** a binder is visible. You can list multiple contexts separated by commas.
@@ -87,8 +98,9 @@ The `context` field determines **when** a binder is visible. You can list multip
 #### Wildcards & Regex
 *   You can use `*`, `any`, or `*:*` as a wildcard for items, blocks, or entities.
     *   Example: `looking_at_entity:*` (Visible when looking at ANY entity).
-*   If `"isRegex": true`, you can use Regular Expressions for item/block IDs.
+*   If `"isRegex": true` (or the specific `keyIsRegex`/`contextIsRegex` flags), you can use Regular Expressions for keybinding names and item/block IDs.
     *   Example: `holding:.*_sword` (Visible when holding any sword).
+*   A regex `keyBinding` creates one binder per matching key. Set `"label": "{auto}"` to use each matched keybind's own translated name as the label.
 
 ### Dynamic Icons
 If `"dynamicIcon": true`, the binder will try to use the item that triggered the context as the icon.
@@ -102,3 +114,4 @@ If `"dynamicIcon": true`, the binder will try to use the item that triggered the
 ## Compatibility
 *   Minecraft Forge (1.20.1)
 *   Works alongside most HUD and GUI mods.
+*   **No Conflict**: first-class integration — conflicted keybinds managed by No Conflict display their real physical key and how they're triggered (tap / hold / radial menu). Requires a No Conflict version that ships `NoConflictApi`; with older versions Binders simply falls back to vanilla display.

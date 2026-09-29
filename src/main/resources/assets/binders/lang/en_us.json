@@ -1,0 +1,13 @@
+{
+  "binders.button.overlay": "Binders Overlay: %s",
+  "binders.state.on": "ON",
+  "binders.state.off": "OFF",
+  "binders.compat.hold": "Hold %s",
+  "binders.compat.menu": "%s (menu)",
+  "binders.command.dump.start": "Dumping all keybind IDs to logs...",
+  "binders.command.dump.entry": "Key: %s",
+  "binders.command.dump.done": "Dump complete. Check latest.log",
+  "binders.command.reload.start": "Reloading Binders definitions...",
+  "binders.command.reload.done": "Reload complete!",
+  "binders.command.reload.error": "Error reloading binders: %s"
+}

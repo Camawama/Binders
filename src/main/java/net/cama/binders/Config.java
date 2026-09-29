@@ -1,11 +1,7 @@
 package net.cama.binders;
 
 import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.event.config.ModConfigEvent;
 
-@Mod.EventBusSubscriber(modid = Binders.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class Config
 {
     private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
@@ -21,11 +17,11 @@ public class Config
         SHOW_OVERLAY = BUILDER
                 .comment("Master toggle for the keybind overlay")
                 .define("showOverlay", true);
-        
+
         OFFSET_X = BUILDER
                 .comment("Global X offset for the overlay list")
                 .defineInRange("offsetX", -10, Integer.MIN_VALUE, Integer.MAX_VALUE);
-        
+
         OFFSET_Y = BUILDER
                 .comment("Global Y offset for the overlay list")
                 .defineInRange("offsetY", -20, Integer.MIN_VALUE, Integer.MAX_VALUE);
@@ -33,11 +29,11 @@ public class Config
         ANCHOR = BUILDER
                 .comment("Where the list is anchored on the screen")
                 .defineEnum("anchor", Anchor.BOTTOM_RIGHT);
-        
+
         EASING = BUILDER
                 .comment("Animation easing function")
                 .defineEnum("easing", Easing.EASE_OUT_BACK);
-        
+
         BUILDER.pop();
     }
 
@@ -54,10 +50,5 @@ public class Config
         EASE_IN_CUBIC, EASE_OUT_CUBIC, EASE_IN_OUT_CUBIC,
         EASE_IN_BACK, EASE_OUT_BACK, EASE_IN_OUT_BACK,
         EASE_OUT_ELASTIC
-    }
-
-    @SubscribeEvent
-    static void onLoad(final ModConfigEvent event)
-    {
     }
 }
